@@ -26,6 +26,7 @@ class Trainer:
         self.train_size, self.test_size = self.dataset.get_size()
 
     def train_minibatch(self, num_epochs, batch_size, interval):
+        #X是输入特征0到t时刻的，y是yt的值，y_seq是y0-yt-1的序列值
         x_train, y_train, y_seq_train = self.dataset.get_train_set()
         for epoch in range(num_epochs):
             i = 0
@@ -41,6 +42,7 @@ class Trainer:
                 var_y_seq = self.to_variable(y_seq_train[i: batch_end])
                 if var_x.dim() == 2:
                     var_x = var_x.unsqueeze(2)
+                #直接调用模型实力时，其实是调用的模型的forward方法。
                 code = self.encoder(var_x)
                 y_res = self.decoder(code, var_y_seq)
                 loss = self.loss_func(y_res, var_y)
