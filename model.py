@@ -33,12 +33,12 @@ class AttnEncoder(nn.Module):
         batch_size = driving_x.size(0)
         # batch_size * time_step * hidden_size
         code = self.init_variable(batch_size, self.T, self.hidden_size)
-        # initialize hidden state
+        # initialize hidden state 注意这里的h是一个variable，只存放当前的h向量。可以理解为只存放最新的h（t-1）.
         h = self.init_variable(1, batch_size, self.hidden_size)
-        # initialize cell state
+        # initialize cell state  同理
         s = self.init_variable(1, batch_size, self.hidden_size)
         for t in range(self.T):
-            # batch_size * input_size * (2 * hidden_size + time_step)
+            # batch_size * input_size * (2 * hidden_size + time_step)     为什么第三个维度要加上 time_step?? 原来这里说的是x=z1+z2的形状。
             x = torch.cat((self.embedding_hidden(h), self.embedding_hidden(s)), 2)
             #x是三维的数组，为什么Linear（）可以接收？？？？这块应该要Squeeze一下吧
             z1 = self.attn1(x)
@@ -49,8 +49,10 @@ class AttnEncoder(nn.Module):
             # batch_size * input_size * 1
             z3 = self.attn3(self.tanh(x))
             if batch_size > 1:
+                #由3维view成两维。
                 attn_w = F.softmax(z3.view(batch_size, self.input_size), dim=1)
             else:
+                #第一批次过来时将权重都初始化为1
                 attn_w = self.init_variable(batch_size, self.input_size) + 1
             # batch_size * input_size 给各个时刻，各个batch，各个特征的注意力权重
             weighted_x = torch.mul(attn_w, driving_x[:, t, :])
@@ -59,7 +61,8 @@ class AttnEncoder(nn.Module):
             s = states[1]
 
             # encoding result
-            # batch_size * time_step * encoder_hidden_size
+            # batch_size * time_step * encoder_hidden_size  记录下了每个时刻对应的h向量，很关键，可以用于因果卷积。这样感觉Encoder代码就不用变
+            #code其实就是存下了各timestep的h向量。
             code[:, t, :] = h
 
         return code
@@ -75,7 +78,7 @@ class AttnEncoder(nn.Module):
 
 
 class AttnDecoder(nn.Module):
-
+    #code_hidden_size是Encoder层的hidden_size，hidden_size是decoder层的
     def __init__(self, code_hidden_size, hidden_size, time_step):
         super(AttnDecoder, self).__init__()
         self.code_hidden_size = code_hidden_size
@@ -106,6 +109,7 @@ class AttnDecoder(nn.Module):
             # batch_size * time_step * 1
             z3 = self.attn3(self.tanh(x))
             if batch_size > 1:
+                #这里的batch_size其实就是timestep。
                 beta_t = F.softmax(z3.view(batch_size, -1), dim=1)
             else:
                 beta_t = self.init_variable(batch_size, self.code_hidden_size) + 1
