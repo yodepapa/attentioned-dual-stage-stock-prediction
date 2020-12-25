@@ -18,6 +18,8 @@ class AttnEncoder(nn.Module):
         #linear层只是乘矩阵W，并不激活。输入为h t-1拼接s t-1向量，输出是时间序列的长度
         self.attn1 = nn.Linear(in_features=2 * hidden_size, out_features=self.T)
         #输入是某一特征的一个时间序列，输出是一个时间序列是长度
+        #Linear训练的时候输入是所有特征的完序列，并不是一个特征训练一个Linear，是所有特征共用这一个Linear，这块容易想不明白。但是这Linear也不能接收三维呀，应该Squezz一下。
+        #把batch_size维度压缩掉，新的输入形状变成（横行：各个特征，纵列：时间维度）
         self.attn2 = nn.Linear(in_features=self.T, out_features=self.T)
         #attn1和attn2求和后激活一下
         self.tanh = nn.Tanh()
@@ -38,10 +40,10 @@ class AttnEncoder(nn.Module):
         for t in range(self.T):
             # batch_size * input_size * (2 * hidden_size + time_step)
             x = torch.cat((self.embedding_hidden(h), self.embedding_hidden(s)), 2)
-            #x是三维的数组，为什么Linear（）可以接收？？？？
+            #x是三维的数组，为什么Linear（）可以接收？？？？这块应该要Squeeze一下吧
             z1 = self.attn1(x)
             #Linear接收第一维度默认为batch
-            #driving_x 应该是没个横行是一个时刻，每一列是一个特征。所以需要转置为每一个横行是一个特征。
+            #driving_x 应该是每个横行是一个时刻，每一列是一个特征。所以需要转置为每一个横行是一个特征。
             z2 = self.attn2(driving_x.permute(0, 2, 1))
             x = z1 + z2
             # batch_size * input_size * 1
