@@ -40,7 +40,7 @@ class AttnEncoder(nn.Module):
         for t in range(self.T):
             # batch_size * input_size * (2 * hidden_size + time_step)     为什么第三个维度要加上 time_step?? 原来这里说的是x=z1+z2的形状。
             x = torch.cat((self.embedding_hidden(h), self.embedding_hidden(s)), 2)
-            #x是三维的数组，为什么Linear（）可以接收？？？？这块应该要Squeeze一下吧
+           
             z1 = self.attn1(x)
             #Linear接收第一维度默认为batch
             #driving_x 应该是每个横行是一个时刻，每一列是一个特征。所以需要转置为每一个横行是一个特征。
@@ -109,7 +109,7 @@ class AttnDecoder(nn.Module):
             # batch_size * time_step * 1
             z3 = self.attn3(self.tanh(x))
             if batch_size > 1:
-                #这里的batch_size其实就是timestep。
+                
                 beta_t = F.softmax(z3.view(batch_size, -1), dim=1)
             else:
                 beta_t = self.init_variable(batch_size, self.code_hidden_size) + 1
